@@ -4,6 +4,20 @@ trap '{ stty sane; echo ""; errexit "Aborted"; }' SIGINT SIGTERM
 
 MNTPATH="/tmp/img-info-mnt"
 
+errexit()
+{
+  echo ""
+  echo -e "$1"
+  echo ""
+  if [ "${MNTED}" = "TRUE" ]; then
+    umount "${BOOTMNT}/" &> /dev/null
+    umount "${MNTPATH}/" &> /dev/null
+    rm -rf "${MNTPATH}/" &> /dev/null
+  fi
+  rmloop
+  exit 1
+}
+
 mkloop()
 {
   LOOP="$(losetup -f --show -P "${IMGFILE}")"
@@ -34,13 +48,18 @@ mntimg()
   if [ $? -ne 0 ]; then
     errexit "Unable to mount image ROOT partition"
   fi
-  if [ ! -d "${MNTPATH}/boot/" ]; then
-    mkdir -p "${MNTPATH}/boot/"
+  if [ "${UBUNTU}" = "FALSE" ]; then
+    BOOTMNT="${MNTPATH}/boot"
+  else
+    BOOTMNT="${MNTPATH}/boot/firmware"
+  fi
+  if [ ! -d "${BOOTMNT}/" ]; then
+    mkdir -p "${BOOTMNT}/"
     if [ $? -ne 0 ]; then
       errexit "Unable to make BOOT partition mount point"
     fi
   fi
-  mount "${LOOP}p1" "${MNTPATH}/boot/"
+  mount "${LOOP}p1" "${BOOTMNT}/"
   if [ $? -ne 0 ]; then
     errexit "Unable to mount image BOOT partition"
   fi
@@ -48,7 +67,7 @@ mntimg()
 
 umntimg()
 {
-  umount "${MNTPATH}/boot/"
+  umount "${BOOTMNT}/"
   if [ $? -ne 0 ]; then
     errexit "Unable to unmount image BOOT partition"
   fi
@@ -61,18 +80,11 @@ umntimg()
   MNTED=FALSE
 }
 
-errexit()
+usage()
 {
-  echo ""
-  echo "$1"
-  echo ""
-  if [ "${MNTED}" = "TRUE" ]; then
-    umount "${MNTPATH}/boot/" &> /dev/null
-    umount "${MNTPATH}/" &> /dev/null
-    rm -rf "${MNTPATH}/" &> /dev/null
-  fi
-  rmloop
-  exit 1
+  errexit "Usage: $0 [options] pathto/imagefile\n\
+-h,--help       This usage description\n\
+-u,--ubuntu     Ubuntu"
 }
 
 LOOP=""
@@ -86,7 +98,31 @@ for PID in $(pidof -x -o %PPID "${PGMNAME}"); do
     errexit "${PGMNAME} is already running"
   fi
 done
-IMGFILE="$1"
+IMGFILE=""
+UBUNTU=FALSE
+while [ $# -gt 0 ]; do
+  case "$1" in
+
+    -h|--help)
+      usage
+      ;;
+
+    -u|--ubuntu)
+      UBUNTU=TRUE
+      shift
+      ;;
+
+    -*|--*)
+      usage
+      ;;
+
+    *)
+      IMGFILE="$1"
+      shift
+      ;;
+
+  esac
+done
 FLAG=0
 while :
 do

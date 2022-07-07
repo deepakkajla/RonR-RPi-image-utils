@@ -5,6 +5,7 @@ Usage: image-backup [options] [pathto/imagefile for incremental backup]
 -i,--initial    pathto/filename of image file [,inital size MB [,added space for incremental MB]]
 -n,--noexpand   Do not expand filesystem on first run after restore
 -o,--options    Additional rsync options (comma separated)
+-u,--ubuntu     Ubuntu
 -x,--extract    Extract image from NOOBS (force BOOT partition to -01 / ROOT partition to -02)"
 
 image-backup creates a backup of a running Raspbian system to a standard 'raw' image file that can be written to an SD card or a USB device with Etcher, imageUSB, etc. It will also perform incremental updates to an existing backup image file.
@@ -26,56 +27,63 @@ image-backup --initial /media/backup.img,,5000 --noexpand --options --exclude-fr
 
 Image-check:
 
-image-check will check the integrity of a standard 'raw' image file.  Usage is:
-
-image-check imagefile [W95|Linux]
+Usage: image-check imagefile [W95|Linux]
 
 where W95 checks the BOOT partition and Linux checks the ROOT partition.  If neither is specified, Linux is assumed.
+
+image-check will check the integrity of a standard 'raw' image file.
 
 
 image-chroot:
 
-image-chroot performs a linux 'chroot' to an image file.  The current user will be 'root' and the current directory will be '/' in the image file.  The host's root filesystem will be available at /host-root-fs.  Use exit or ^D to terminate chroot.  Usage is:
+Usage: image-backup [options] pathto/imagefile
+-h,--help       This usage description
+-u,--ubuntu     Ubuntu
 
-image-chroot [imagefile]
+image-chroot performs a linux 'chroot' to an image file.  The current user will be 'root' and the current directory will be '/' in the image file.  The host's root filesystem will be available at /host-root-fs.  Use exit or ^D to terminate chroot.
 
 
 image-compare:
 
-image-compare compares a running Raspbian system to an existing standard 'raw' image file and displays the incremental changes that image-backup would perform if run.  Usage is:
+Usage: image-backup [options] pathto/imagefile
+-h,--help       This usage description
+-o,--options    Additional rsync options (comma separated)
+-u,--ubuntu     Ubuntu
 
-image-compare [imagefile]
+image-compare compares a running Raspbian system to an existing standard 'raw' image file and displays the incremental changes that image-backup would perform if run.
 
 
 image-info:
 
-image-info displays information about a standard 'raw' image file.  Usage is:
+Usage: image-backup [options] pathto/imagefile
+-h,--help       This usage description
+-u,--ubuntu     Ubuntu
 
-image-info [imagefile]
+image-info displays information about a standard 'raw' image file.
 
 
 image-mount:
 
-image-mount mounts a standard 'raw' image file to allow it to be read or written as if it were a device.  Usage is:
-
-image-mount imagefile mountpoint [W95|Linux]
+Usage: image-mount imagefile mountpoint [W95|Linux]
 
 where W95 mounts the BOOT partition and Linux mounts the ROOT partition.  If neither is specified, Linux is assumed.
+
+image-mount mounts a standard 'raw' image file to allow it to be read or written as if it were a device.
 
 
 image-set-partuuid:
 
-image-set-partuuid sets the ROOT partition PARTUUID value of a standard 'raw' image file.  Usage is:
-
-image-set-partuuid imagefile [ hhhhhhhh-02 | hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh | random ]"
+Usage: image-set-partuuid imagefile [ hhhhhhhh-02 | hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh | random ]"
 
 If no partuuid is specified, the current ROOT partuuid will be displayed.
+
+image-set-partuuid sets the ROOT partition PARTUUID value of a standard 'raw' image file.
 
 
 image-shrink:
 
-image-shrink shrinks a standard 'raw' image file to its smallest possible size (plus an optional additional amount of free space).  Usage is:
-
-image-shrink imagefile [Additional MB]
+Usage: image-shrink imagefile [Additional MB]
 
 where Additional MB is an optional additional amount of free space to be added.
+
+image-shrink shrinks a standard 'raw' image file to its smallest possible size (plus an optional additional amount of free space).

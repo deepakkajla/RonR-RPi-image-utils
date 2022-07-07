@@ -6,6 +6,20 @@ MNTPATH="/tmp/img-backup-mnt"
 
 ONEMB=$((1024 * 1024))
 
+errexit()
+{
+  echo ""
+  echo -e "$1"
+  echo ""
+  if [ "${MNTED}" = "TRUE" ]; then
+    umount "${BOOTMNT}/" &> /dev/null
+    umount "${MNTPATH}/" &> /dev/null
+    rm -rf "${MNTPATH}/" &> /dev/null
+  fi
+  rmloop
+  exit 1
+}
+
 mkloop()
 {
   LOOP="$(losetup -f --show -P "${IMGFILE}")"
@@ -36,13 +50,18 @@ mntimg()
   if [ $? -ne 0 ]; then
     errexit "Unable to mount image ROOT partition"
   fi
-  if [ ! -d "${MNTPATH}/boot/" ]; then
-    mkdir -p "${MNTPATH}/boot/"
+  if [ "${UBUNTU}" = "FALSE" ]; then
+    BOOTMNT="${MNTPATH}/boot"
+  else
+    BOOTMNT="${MNTPATH}/boot/firmware"
+  fi
+  if [ ! -d "${BOOTMNT}/" ]; then
+    mkdir -p "${BOOTMNT}/"
     if [ $? -ne 0 ]; then
       errexit "Unable to make BOOT partition mount point"
     fi
   fi
-  mount "${LOOP}p1" "${MNTPATH}/boot/"
+  mount "${LOOP}p1" "${BOOTMNT}/"
   if [ $? -ne 0 ]; then
     errexit "Unable to mount image BOOT partition"
   fi
@@ -50,7 +69,7 @@ mntimg()
 
 umntimg()
 {
-  umount "${MNTPATH}/boot/"
+  umount "${BOOTMNT}/"
   if [ $? -ne 0 ]; then
     errexit "Unable to unmount image BOOT partition"
   fi
@@ -61,20 +80,6 @@ umntimg()
   rmloop
   rm -r "${MNTPATH}/"
   MNTED=FALSE
-}
-
-errexit()
-{
-  echo ""
-  echo -e "$1"
-  echo ""
-  if [ "${MNTED}" = "TRUE" ]; then
-    umount "${MNTPATH}/boot/" &> /dev/null
-    umount "${MNTPATH}/" &> /dev/null
-    rm -rf "${MNTPATH}/" &> /dev/null
-  fi
-  rmloop
-  exit 1
 }
 
 fsckerr()
@@ -89,6 +94,7 @@ usage()
 -i,--initial    pathto/filename of image file [,inital size MB [,added space for incremental MB]]\n\
 -n,--noexpand   Do not expand filesystem on first run after restore\n\
 -o,--options    Additional rsync options (comma separated)\n\
+-u,--ubuntu     Ubuntu\n\
 -x,--extract    Extract image from NOOBS (force BOOT partition to -01 / ROOT partition to -02)"
 }
 
@@ -108,11 +114,11 @@ backup()
   fi
   chmod a+rwxt "${MNTPATH}/tmp/"
   if [ "${EXTRACT}" = "TRUE" ]; then
-    sed -i "/^[[:space:]]*#/!s|^\(.*root=\)\S\+\(\s\+.*\)$|\1PARTUUID=${PTUUID}-02\2|" "${MNTPATH}/boot/cmdline.txt"
+    sed -i "/^[[:space:]]*#/!s|^\(.*root=\)\S\+\(\s\+.*\)$|\1PARTUUID=${PTUUID}-02\2|" "${BOOTMNT}/cmdline.txt"
     sed -i "/^[[:space:]]*#/!s|^\S\+\(\s\+/boot\s\+.*\)$|PARTUUID=${PTUUID}-01\1|" "${MNTPATH}/etc/fstab"
     sed -i "/^[[:space:]]*#/!s|^\S\+\(\s\+/\s\+.*\)$|PARTUUID=${PTUUID}-02\1|" "${MNTPATH}/etc/fstab"
   fi
-  if [[ "${NOEXPAND}" = "FALSE" && "${ROOT_TYPE}" != "f2fs" && $(grep -v '^[[:space:]]*#' "${MNTPATH}/etc/rc.local" | grep -c 'resize-root-fs') -eq 0 ]]; then
+  if [[ "${UBUNTU}" = "FALSE" && "${NOEXPAND}" = "FALSE" && "${ROOT_TYPE}" != "f2fs" && $(grep -v '^[[:space:]]*#' "${MNTPATH}/etc/rc.local" | grep -c 'resize-root-fs') -eq 0 ]]; then
     cat <<\EOF1 > "${MNTPATH}/etc/resize-root-fs"
 #!/bin/bash
 
@@ -166,6 +172,10 @@ EOF1
   fi
   sync
   umntimg
+  mkloop
+  fatlabel "${LOOP}p1" "$(fatlabel ${ROOT_DEV_P}1 | sed -n '$p')" &> /dev/null
+  e2label "${LOOP}p2" "$(e2label ${ROOT_DEV_P}2)" &> /dev/null
+  rmloop
 }
 
 LOOP=""
@@ -227,6 +237,7 @@ IMGSIZE=""
 IMGINCR=""
 IMGFILE=""
 OPTIONS=()
+UBUNTU=FALSE
 EXTRACT=FALSE
 NOEXPAND=FALSE
 while [ $# -gt 0 ]; do
@@ -258,6 +269,11 @@ while [ $# -gt 0 ]; do
       OPTIONS=($2)
       IFS=${OIFS}
       shift 2
+      ;;
+
+    -u|--ubuntu)
+      UBUNTU=TRUE
+      shift
       ;;
 
     -x|--extract)
