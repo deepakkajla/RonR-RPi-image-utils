@@ -1,0 +1,5 @@
+lsblk
+sudo mount /dev/sda1 /mnt/usb/
+cd /home/pi/Documents/image-utilities/RonR-RPi-image-utils/
+sudo ./image-backup
+/mnt/usb/pihole_unbound_YYYY-MM-DD.img
